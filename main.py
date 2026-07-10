@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -38,9 +38,9 @@ def create_task(task: TaskCreate):
 
     return new_task
 
-@app.get("/tasks/{id}")
-def get_task(id: int):
+@app.get("/tasks/{task_id}")
+def get_task(task_id: int):
     for task in tasks:
-        if task["id"] == id:
+        if task["id"] == task_id:
             return task
-    return {"error": "not found"}
+    raise HTTPException(status_code=404, detail="Task not found")
