@@ -10,7 +10,8 @@ class TaskCreate(BaseModel):
     text: str
 
 class TaskUpdate(BaseModel):
-    completed: bool
+    text: str | None = None
+    completed: bool | None = None
 
 
 def find_task(task_id: int):
@@ -64,7 +65,10 @@ def update_task(task_id: int, task_update: TaskUpdate):
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task["completed"] = task_update.completed
+    changes = task_update.model_dump(exclude_unset=True)
+
+    for field, value in changes.items():
+        task[field] = value
     return task
 
 @app.delete("/tasks/{task_id}")
