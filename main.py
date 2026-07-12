@@ -13,6 +13,11 @@ class TaskUpdate(BaseModel):
     text: str | None = None
     completed: bool | None = None
 
+class TaskResponse(BaseModel):
+    id: int
+    text: str
+    completed: bool
+
 
 def find_task(task_id: int):
     for task in tasks:
@@ -31,12 +36,12 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.get("/tasks")
+@app.get("/tasks", response_model=list[TaskResponse])
 def list_tasks():
     return tasks
 
 
-@app.post("/tasks")
+@app.post("/tasks", response_model=TaskResponse)
 def create_task(task: TaskCreate):
     global next_id
     new_task = {
@@ -50,7 +55,7 @@ def create_task(task: TaskCreate):
 
     return new_task
 
-@app.get("/tasks/{task_id}")
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
 def get_task(task_id: int):
     task = find_task(task_id)
 
@@ -59,7 +64,7 @@ def get_task(task_id: int):
 
     return task
 
-@app.patch("/tasks/{task_id}")
+@app.patch("/tasks/{task_id}", response_model=TaskResponse)
 def update_task(task_id: int, task_update: TaskUpdate):
     task = find_task(task_id)
     if task is None:
