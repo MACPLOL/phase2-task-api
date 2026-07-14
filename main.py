@@ -8,9 +8,6 @@ from models import Task
 
 app = FastAPI()
 
-tasks = []
-next_id = 1
-
 class TaskCreate(BaseModel):
     text: str
 
