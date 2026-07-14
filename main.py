@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from database import engine
+from sqlalchemy import text
 
 app = FastAPI()
 
@@ -35,7 +37,14 @@ def root():
 def health_check():
     return {"status": "ok"}
 
+@app.get("/db-health")
+def database_health_check():
+    with engine.connect() as connection:
+        result = connection.execute (text("SELECT 1")).scalar_one()
 
+        return {"database_status": "ok", "result": result}
+    
+    
 @app.get("/tasks", response_model=list[TaskResponse])
 def list_tasks():
     return tasks
