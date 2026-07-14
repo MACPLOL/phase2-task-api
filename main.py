@@ -22,14 +22,6 @@ class TaskResponse(BaseModel):
     completed: bool
 
 
-def find_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
-
-    return None
-
-
 @app.get("/")
 def root():
     return {"message": "Task API is running"}
