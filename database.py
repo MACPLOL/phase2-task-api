@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
+from sqlalchemy.orm import DeclarativeBase
 
 
 load_dotenv()
@@ -17,3 +18,6 @@ database_url = URL.create(
 )
 
 engine = create_engine(database_url)
+
+class Base(DeclarativeBase):
+    pass
