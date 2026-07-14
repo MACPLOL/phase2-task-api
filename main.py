@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel, ConfigDict
 from database import engine
 from sqlalchemy import text
+from sqlalchemy.orm import Session
+from database import get_db
+from models import Task
 
 app = FastAPI()
 
@@ -16,6 +19,7 @@ class TaskUpdate(BaseModel):
     completed: bool | None = None
 
 class TaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     text: str
     completed: bool
@@ -51,18 +55,15 @@ def list_tasks():
 
 
 @app.post("/tasks", response_model=TaskResponse)
-def create_task(task: TaskCreate):
-    global next_id
-    new_task = {
-        "id": next_id,
-        "text": task.text,
-        "completed": False,
-    }
-
-    tasks.append(new_task)
-    next_id += 1
-
-    return new_task
+def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+    db_task = Task(
+        text=task.text,
+        completed=False
+    )
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
 def get_task(task_id: int):
