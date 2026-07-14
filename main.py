@@ -74,15 +74,22 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
     return task
 
 @app.patch("/tasks/{task_id}", response_model=TaskResponse)
-def update_task(task_id: int, task_update: TaskUpdate):
-    task = find_task(task_id)
+def update_task(
+    task_id: int,
+    task_update: TaskUpdate,
+    db: Session = Depends(get_db),
+):
+    
+    task = db.get(Task, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
     changes = task_update.model_dump(exclude_unset=True)
 
     for field, value in changes.items():
-        task[field] = value
+        setattr(task, field, value)
+    db.commit()
+    db.refresh(task)
     return task
 
 @app.delete("/tasks/{task_id}")
