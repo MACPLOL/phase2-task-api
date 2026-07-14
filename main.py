@@ -1,7 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 from database import engine
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Task
@@ -50,8 +50,9 @@ def database_health_check():
     
     
 @app.get("/tasks", response_model=list[TaskResponse])
-def list_tasks():
-    return tasks
+def list_tasks(db: Session = Depends(get_db)):
+    result = db.execute(select(Task))
+    return result.scalars().all()
 
 
 @app.post("/tasks", response_model=TaskResponse)
@@ -66,12 +67,10 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     return db_task
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
-def get_task(task_id: int):
-    task = find_task(task_id)
-
+def get_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.get(Task, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-
     return task
 
 @app.patch("/tasks/{task_id}", response_model=TaskResponse)
