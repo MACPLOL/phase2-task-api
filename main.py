@@ -10,16 +10,19 @@ app = FastAPI()
 
 class TaskCreate(BaseModel):
     text: str
+    priority: str | None = None
 
 class TaskUpdate(BaseModel):
     text: str | None = None
     completed: bool | None = None
+    priority: str | None = None
 
 class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     text: str
     completed: bool
+    priority: str | None = None
 
 
 @app.get("/")
@@ -48,8 +51,10 @@ def list_tasks(db: Session = Depends(get_db)):
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     db_task = Task(
         text=task.text,
-        completed=False
+        completed=False,
+        priority=task.priority,
     )
+    
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
