@@ -1,10 +1,11 @@
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from database import engine
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Task
+from sqlalchemy.exc import IntegrityError
 
 app = FastAPI()
 
@@ -12,10 +13,31 @@ class TaskCreate(BaseModel):
     text: str
     priority: str | None = None
 
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        cleaned_text = value.strip()
+        if not cleaned_text:
+            raise ValueError("Task text cannot be empty")
+        return cleaned_text
+
 class TaskUpdate(BaseModel):
     text: str | None = None
     completed: bool | None = None
     priority: str | None = None
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        cleaned_text = value.strip()
+
+        if not cleaned_text:
+            raise ValueError("Task text cannot be empty")
+
+        return cleaned_text
 
 class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -56,8 +78,18 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     )
     
     db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
+
+    try:
+        db.commit()
+        db.refresh(db_task)
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Task could not be saved because it violates a database rule",
+        )
+
     return db_task
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -82,8 +114,16 @@ def update_task(
 
     for field, value in changes.items():
         setattr(task, field, value)
-    db.commit()
-    db.refresh(task)
+    try:
+        db.commit()
+        db.refresh(task)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Task could not be updated because it violates a database rule",
+        )
+
     return task
 
 @app.delete("/tasks/{task_id}")
