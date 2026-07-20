@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, field_validator
 from database import engine
 from sqlalchemy import select, text
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Task
 from sqlalchemy.exc import IntegrityError
+from typing import Literal
 
 app = FastAPI()
 
@@ -64,8 +65,30 @@ def database_health_check():
     
     
 @app.get("/tasks", response_model=list[TaskResponse])
-def list_tasks(db: Session = Depends(get_db)):
-    result = db.execute(select(Task))
+def list_tasks(limit: int = Query(default=10, ge=1, le=100),
+               offset: int = Query(default=0, ge=0),
+               completed: bool | None = None,
+               priority: Literal["low", "medium", "high"] | None = None,
+               sort_order: Literal["asc", "desc"] = "asc",
+               db: Session = Depends(get_db),
+):
+    statement = select(Task)
+    if completed is not None:
+        statement = statement.where(Task.completed == completed)
+
+    if priority is not None:
+        statement = statement.where(Task.priority == priority)
+
+    if sort_order == "desc":
+        order_expression = Task.id.desc()
+    else:
+        order_expression = Task.id.asc()
+
+    statement = (statement
+                .order_by(order_expression)
+                .offset(offset)
+                .limit(limit))
+    result = db.execute(statement)
     return result.scalars().all()
 
 
