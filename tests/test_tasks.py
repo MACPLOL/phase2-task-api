@@ -209,3 +209,82 @@ def test_list_tasks_combines_everything(client):
     assert response.status_code == 200
     assert len(data) == 1
     assert data[0]["text"] == "Task B"
+
+def test_get_task_by_id_returns_existing_task(client):
+
+    create_response = client.post(
+        "/tasks",
+        json = {"text": "Task A"},
+    )
+    task_a_id = create_response.json()["id"]
+
+    response = client.get(f"/tasks/{task_a_id}")
+    data = response.json()
+
+    assert response.status_code == 200
+
+    assert data["text"] == "Task A"
+
+def test_get_task_by_id_returns_404_when_missing(client):
+    response = client.get("/tasks/999999999")
+
+    assert response.status_code == 404
+
+def test_update_task_marks_existing_task_completed(client):
+    create_response = client.post(
+        "/tasks",
+        json = {"text": "Task A"},
+    )
+    task_a_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/tasks/{task_a_id}",
+        json={"completed": True},
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["completed"] is True
+
+def test_update_task_returns_404_when_missing(client):
+    response = client.patch(
+        "/tasks/99999999",
+        json={"completed": True},
+    )
+
+    assert response.status_code == 404
+
+def test_delete_task_removes_existing_task(client):
+    #create task A
+    create_response = client.post(
+        "/tasks",
+        json= {"text": "Task A"}
+    )
+
+    #extract task a ID
+    task_a_id = create_response.json()["id"]
+
+    #delete task a via its id
+    delete_response = client.delete(f"/tasks/{task_a_id}")
+
+    #assert delete returned 200
+    assert delete_response.status_code == 200
+
+    #get the same id deleted
+    get_response = client.get(f"/tasks/{task_a_id}")
+
+    #assert get returned a 404 error
+    assert get_response.status_code == 404
+
+def test_delete_task_returns_404_when_missing(client):
+    response = client.delete("/tasks/999999")
+
+    assert response.status_code == 404
+
+def test_create_task_returns_422_when_text_is_missing(client):
+    response = client.post(
+        "/tasks",
+        json = {}
+    )
+    assert response.status_code == 422
