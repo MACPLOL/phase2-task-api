@@ -4,9 +4,10 @@ from database import engine
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Task
+from models import Task, User
 from sqlalchemy.exc import IntegrityError
 from typing import Literal
+from security import hash_password
 
 app = FastAPI()
 
@@ -46,6 +47,15 @@ class TaskResponse(BaseModel):
     text: str
     completed: bool
     priority: str | None = None
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    email: str
 
 
 @app.get("/")
@@ -162,3 +172,16 @@ def delete_task(
     db.delete(task)
     db.commit()
     return {"message": "Task deleted"}
+
+    #   Todo: POST /users registration route
+    # POST registration route
+    # Receive UserCreate input and database session
+    # Hash the incoming raw password
+    # Create User with email and hashed_password
+    # Add User to the session
+    # Try to commit
+    # If duplicate email raises IntegrityError:
+    #     rollback the failed transaction
+    #     return 409 Conflict
+    # Refresh the User object
+    # Return the safe UserResponse
