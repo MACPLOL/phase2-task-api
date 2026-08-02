@@ -7,7 +7,7 @@ from database import get_db
 from models import Task, User
 from sqlalchemy.exc import IntegrityError
 from typing import Literal
-from security import hash_password
+from security import hash_password, verify_password
 
 app = FastAPI()
 
@@ -56,6 +56,10 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     email: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
 
 
 @app.get("/")
@@ -197,3 +201,28 @@ def create_user(
             detail= "Email already registered",
         )
     return new_user
+
+@app.post("/login", response_model=UserResponse)
+def login_user(
+    credentials: UserLogin,
+    db:Session = Depends(get_db),
+):
+    statement = select(User).where(User.email == credentials.email)
+    result = db.execute(statement)
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail= "Invalid email or password",
+        )
+
+    password_is_valid = verify_password(
+    credentials.password,
+    user.hashed_password,
+)   
+    if not password_is_valid:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+    )
+    return user
