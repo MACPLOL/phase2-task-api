@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import URL, create_engine, delete
 from sqlalchemy.orm import sessionmaker
-from models import Task
+from models import Task, User
 from fastapi.testclient import TestClient
 from database import Base, get_db
 from main import app
@@ -44,11 +44,13 @@ def clean_test_database():
 
     try:
         db.execute(delete(Task))
+        db.execute(delete(User))
         db.commit()
 
         yield
 
     finally:
         db.execute(delete(Task))
+        db.execute(delete(User))
         db.commit()
         db.close()

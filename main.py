@@ -173,15 +173,27 @@ def delete_task(
     db.commit()
     return {"message": "Task deleted"}
 
-    #   Todo: POST /users registration route
-    # POST registration route
-    # Receive UserCreate input and database session
-    # Hash the incoming raw password
-    # Create User with email and hashed_password
-    # Add User to the session
-    # Try to commit
-    # If duplicate email raises IntegrityError:
-    #     rollback the failed transaction
-    #     return 409 Conflict
-    # Refresh the User object
-    # Return the safe UserResponse
+@app.post("/users", response_model=UserResponse, status_code = 201)
+def create_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+):
+    safe_password = hash_password(user.password)
+
+    new_user = User(
+        email = user.email,
+        hashed_password = safe_password
+    )
+    db.add(new_user)
+
+    try:
+        db.commit()
+        db.refresh(new_user)
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail= "Email already registered",
+        )
+    return new_user
