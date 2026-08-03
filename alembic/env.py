@@ -1,9 +1,8 @@
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy.engine import make_url
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -22,8 +21,10 @@ from database import Base, database_url
 import models
 
 config.set_main_option(
-    "sqlalchemy.url", 
-    database_url.render_as_string(hide_password=False).replace("%", "%%"),
+    "sqlalchemy.url",
+    make_url(database_url)
+    .render_as_string(hide_password=False)
+    .replace("%", "%%"),
 )
 target_metadata = Base.metadata
 
