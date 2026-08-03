@@ -7,9 +7,12 @@ from database import get_db
 from models import Task, User
 from sqlalchemy.exc import IntegrityError
 from typing import Literal
-from security import hash_password, verify_password
+from security import hash_password, verify_password, create_access_token, decode_access_token
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import jwt
 
 app = FastAPI()
+bearer_scheme = HTTPBearer()
 
 class TaskCreate(BaseModel):
     text: str
@@ -61,6 +64,33 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+):
+    token = credentials.credentials
+
+    try:
+        user_id = decode_access_token(token)
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+        )
+
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+        )
+
+    return user
 
 @app.get("/")
 def root():
@@ -202,7 +232,7 @@ def create_user(
         )
     return new_user
 
-@app.post("/login", response_model=UserResponse)
+@app.post("/login", response_model=TokenResponse)
 def login_user(
     credentials: UserLogin,
     db:Session = Depends(get_db),
@@ -225,4 +255,15 @@ def login_user(
             status_code=401,
             detail="Invalid email or password",
     )
-    return user
+    access_token = create_access_token(user.id)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+@app.get("/users/me", response_model=UserResponse)
+def read_current_user(
+    current_user: User = Depends(get_current_user),
+):
+    return current_user
