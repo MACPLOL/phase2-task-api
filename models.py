@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, String
+from sqlalchemy import CheckConstraint, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from database import Base
 
@@ -16,6 +16,10 @@ class Task(Base):
     text: Mapped[str] = mapped_column(String(255))
     completed: Mapped[bool] = mapped_column(default=False)
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False
+    )
 
 
 class User(Base):

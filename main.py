@@ -109,14 +109,18 @@ def database_health_check():
     
     
 @app.get("/tasks", response_model=list[TaskResponse])
-def list_tasks(limit: int = Query(default=10, ge=1, le=100),
-               offset: int = Query(default=0, ge=0),
-               completed: bool | None = None,
-               priority: Literal["low", "medium", "high"] | None = None,
-               sort_order: Literal["asc", "desc"] = "asc",
-               db: Session = Depends(get_db),
+def list_tasks(
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    completed: bool | None = None,
+    priority: Literal["low", "medium", "high"] | None = None,
+    sort_order: Literal["asc", "desc"] = "asc",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    statement = select(Task)
+    statement = select(Task).where(
+        Task.owner_id == current_user.id
+)
     if completed is not None:
         statement = statement.where(Task.completed == completed)
 
@@ -137,11 +141,16 @@ def list_tasks(limit: int = Query(default=10, ge=1, le=100),
 
 
 @app.post("/tasks", response_model=TaskResponse)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    task: TaskCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     db_task = Task(
         text=task.text,
         completed=False,
         priority=task.priority,
+        owner_id=current_user.id,
     )
     
     db.add(db_task)
@@ -160,20 +169,42 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     return db_task
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
-def get_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.get(Task, task_id)
+def get_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    statement = select(Task).where(
+        Task.id == task_id,
+        Task.owner_id == current_user.id,
+    )
+
+    result = db.execute(statement)
+    task = result.scalar_one_or_none()
+
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found",
+        )
+
     return task
 
 @app.patch("/tasks/{task_id}", response_model=TaskResponse)
 def update_task(
     task_id: int,
     task_update: TaskUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    
-    task = db.get(Task, task_id)
+    statement = select(Task).where(
+        Task.id == task_id,
+        Task.owner_id == current_user.id,
+    )
+
+    result = db.execute(statement)
+    task = result.scalar_one_or_none()
+
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -181,6 +212,7 @@ def update_task(
 
     for field, value in changes.items():
         setattr(task, field, value)
+
     try:
         db.commit()
         db.refresh(task)
@@ -196,15 +228,26 @@ def update_task(
 @app.delete("/tasks/{task_id}")
 def delete_task(
     task_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    ):
-    task = db.get(Task, task_id)
+):
+    statement = select(Task).where(
+        Task.id == task_id,
+        Task.owner_id == current_user.id,
+    )
+
+    result = db.execute(statement)
+    task = result.scalar_one_or_none()
 
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-   
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found",
+        )
+
     db.delete(task)
     db.commit()
+
     return {"message": "Task deleted"}
 
 @app.post("/users", response_model=UserResponse, status_code = 201)

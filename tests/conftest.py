@@ -38,6 +38,30 @@ app.dependency_overrides[get_db] = override_get_db
 def client():
     return TestClient(app)
 
+@pytest.fixture
+def auth_headers(client):
+    client.post(
+        "/users",
+        json={
+            "email": "taskowner@example.com",
+            "password": "Mauro123!",
+        },
+    )
+
+    login_response = client.post(
+        "/login",
+        json={
+            "email": "taskowner@example.com",
+            "password": "Mauro123!",
+        },
+    )
+
+    access_token = login_response.json()["access_token"]
+
+    return {
+        "Authorization": f"Bearer {access_token}",
+    }
+
 @pytest.fixture(autouse=True)
 def clean_test_database():
     db = TestSessionLocal()
