@@ -62,6 +62,30 @@ def auth_headers(client):
         "Authorization": f"Bearer {access_token}",
     }
 
+@pytest.fixture
+def second_auth_headers(client):
+    client.post(
+        "/users",
+        json={
+            "email": "seconduser@example.com",
+            "password": "Mauro123!",
+        },
+    )
+
+    login_response = client.post(
+        "/login",
+        json={
+            "email": "seconduser@example.com",
+            "password": "Mauro123!",
+        },
+    )
+
+    access_token = login_response.json()["access_token"]
+
+    return {
+        "Authorization": f"Bearer {access_token}",
+    }
+
 @pytest.fixture(autouse=True)
 def clean_test_database():
     db = TestSessionLocal()
